@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RisaWa</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* --- GLOBAL STYLES & RESET --- */
+        :root {
+            --primary-color: #007AFF;
+            --background-color: #FFFFFF;
+            --secondary-background: #F2F2F7;
+            --text-color: #1c1c1e;
+            --secondary-text-color: #8e8e93;
+            --border-color: #e5e5ea;
+            --danger-color: #FF3B30;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--secondary-background);
+            color: var(--text-color);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        button, .clickable {
+            cursor: pointer;
+        }
+
+        /* --- AUTHENTICATION POPUP --- */
+        .auth-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6); display: flex; justify-content: center;
+            align-items: center; z-index: 1000; backdrop-filter: blur(5px); transition: opacity 0.3s ease;
+        }
+        .auth-popup {
+            background: var(--background-color); padding: 25px 30px; border-radius: 16px;
+            width: 90%; max-width: 350px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); position: relative;
+        }
+        .auth-popup .close-btn {
+            position: absolute; top: 10px; right: 15px; font-size: 24px; color: var(--secondary-text-color); cursor: pointer;
+        }
+        .auth-popup h2 { text-align: center; margin-bottom: 20px; font-size: 24px; font-weight: 600; }
+        .auth-form input {
+            width: 100%; padding: 12px 15px; margin-bottom: 15px; border: 1px solid var(--border-color);
+            border-radius: 8px; font-size: 16px; background: var(--secondary-background);
+        }
+        .auth-form button {
+            width: 100%; padding: 14px; border: none; border-radius: 8px; background-color: var(--primary-color);
+            color: white; font-size: 16px; font-weight: 600; transition: background-color 0.2s ease;
+        }
+        .auth-form button:hover { opacity: 0.9; }
+        .auth-popup .switch-form { text-align: center; margin-top: 20px; font-size: 14px; color: var(--secondary-text-color); }
+        .auth-popup .switch-form span { color: var(--primary-color); font-weight: 600; cursor: pointer; }
+        .hidden { display: none !important; }
+
+        /* --- MAIN APP CONTAINER --- */
+        .app-container {
+            width: 100%; height: 100%; max-width: 600px; margin: 0 auto;
+            display: flex; flex-direction: column; background: var(--background-color);
+        }
+        .app-header {
+            padding: 12px 15px; font-size: 24px; font-weight: 700;
+            border-bottom: 1px solid var(--border-color); text-align: center;
+        }
+        .main-content {
+            flex-grow: 1; overflow-y: auto; padding-bottom: 70px;
+        }
+        .page { display: none; }
+        .page.active { display: block; }
+        .page-padding { padding: 15px; }
+
+        /* --- BOTTOM NAVIGATION --- */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; width: 100%; max-width: 600px; /* Match app container */
+            left: 50%; transform: translateX(-50%); height: 65px; background: var(--background-color);
+            border-top: 1px solid var(--border-color); display: flex; justify-content: space-around;
+            align-items: center; z-index: 100;
+        }
+        .nav-icon { font-size: 24px; color: var(--secondary-text-color); cursor: pointer; flex: 1; text-align: center; padding: 10px 0; }
+        .nav-icon.active { color: var(--primary-color); }
+
+        /* --- POST STYLES --- */
+        .post { background: var(--background-color); padding: 15px; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .post:last-child { border-bottom: none; margin-bottom: 0;}
+        .post-header { display: flex; align-items: center; margin-bottom: 12px; justify-content: space-between; }
+        .post-header-left { display: flex; align-items: center; }
+        .post-header img { width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; object-fit: cover; }
+        .post-header-info { display: flex; flex-direction: column; }
+        .post-header-info .name { font-weight: 600; cursor: pointer; }
+        .post-header-info .time { font-size: 13px; color: var(--secondary-text-color); }
+        .connect-btn { background: var(--primary-color); color: white; padding: 4px 10px; border-radius: 5px; font-size: 12px; font-weight: 600; border: none; }
+        .connect-btn.connected { background: var(--secondary-background); color: var(--text-color); }
+        .post-content .post-text { margin-bottom: 10px; line-height: 1.5; white-space: pre-wrap; }
+        .post-content .post-text .hashtag { color: var(--primary-color); font-weight: 500; cursor: pointer; }
+        .post-content .post-image { width: 100%; border-radius: 12px; margin-top: 10px; }
+        .post-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding: 0 5px; font-size: 20px; color: var(--secondary-text-color); }
+        .post-actions .action-group { display: flex; gap: 20px; }
+        .post-actions i { cursor: pointer; transition: color 0.2s ease; }
+        .post-actions i.liked { color: var(--danger-color); }
+        .action-item { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+        .post-comments { margin-top: 10px; font-size: 14px; padding: 0 5px; }
+        .comment { margin-bottom: 5px; }
+        .comment .name { font-weight: 600; margin-right: 5px; }
+        .comment-input-container { display: flex; margin-top: 10px; gap: 10px; padding: 0 5px;}
+        .comment-input-container input { flex-grow: 1; border: 1px solid var(--border-color); border-radius: 20px; padding: 8px 15px; font-size: 14px; background: var(--secondary-background); }
+        .comment-input-container button { border: none; background: none; color: var(--primary-color); font-weight: 600; }
+
+        /* --- MODALS (NEW POST & EDIT PROFILE) --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5);
+            display: flex; justify-content: center; align-items: center; z-index: 500; backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background: white; border-radius: 16px; width: 90%; max-width: 500px; padding: 20px; position: relative;
+        }
+        .modal-content .close-btn { position: absolute; top: 10px; right: 15px; font-size: 24px; color: var(--secondary-text-color); cursor: pointer; }
+        .modal-content h3 { text-align: center; margin-bottom: 20px; }
+        .modal-content textarea { width: 100%; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; resize: none; margin-bottom: 15px; font-size: 16px; font-family: inherit; }
+        .modal-content .modal-actions { display: flex; justify-content: space-between; align-items: center; }
+        .modal-content input[type="file"] { display: none; }
+        .modal-content .file-label { font-size: 24px; color: var(--primary-color); cursor: pointer; }
+        .modal-content .image-preview { max-height: 50px; max-width: 50px; border-radius: 4px; }
+        .modal-content button[type="submit"] { padding: 10px 20px; background: var(--primary-color); color: white; border: none; border-radius: 20px; font-weight: 600; }
+        /* Edit Profile Specific */
+        #edit-profile-form input[type="text"] { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 15px; }
+        #edit-profile-form .profile-pic-edit { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
+
+
+        /* --- PROFILE PAGE --- */
+        .profile-header {
+            display: flex; flex-direction: column; text-align: center; padding: 20px 15px; border-bottom: 1px solid var(--border-color);
+        }
+        .profile-header img { width: 90px; height: 90px; border-radius: 50%; margin-bottom: 15px; object-fit: cover; }
+        .profile-header .name { font-size: 22px; font-weight: 600; }
+        .profile-header .bio { color: var(--secondary-text-color); margin-top: 5px; max-width: 80%; line-height: 1.4; }
+        .profile-header .edit-profile-btn { background: var(--secondary-background); color: var(--text-color); font-weight: 600; border: none; padding: 8px 15px; border-radius: 8px; margin-top: 15px; }
+        
+        /* --- SEARCH & CONNECTIONS --- */
+        #search-page .search-bar { width: 100%; padding: 12px 15px; border-radius: 20px; border: 1px solid var(--border-color); background: var(--secondary-background); font-size: 16px; margin-bottom: 20px; }
+        #search-results h3, #connections-page h3 { margin: 20px 0 15px; color: var(--secondary-text-color); font-size: 16px; text-transform: uppercase; letter-spacing: 0.5px; }
+        #search-results h3:first-child, #connections-page h3:first-child { margin-top: 0; }
+        .list-item { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-color); }
+        .list-item:last-child { border: none; }
+        .list-item img { width: 45px; height: 45px; border-radius: 50%; margin-right: 12px; }
+
+    </style>
+</head>
+<body>
+
+    <!-- AUTHENTICATION OVERLAY -->
+    <div id="auth-overlay" class="auth-overlay">
+        <div id="signup-popup" class="auth-popup">
+            <div class="close-btn" onclick="enterGuestMode()">&times;</div>
+            <h2>Create Account</h2>
+            <form id="signup-form" class="auth-form">
+                <input type="text" id="signup-name" placeholder="Full Name" required>
+                <input type="text" id="signup-username" placeholder="Username" required>
+                <input type="tel" id="signup-phone" placeholder="Phone Number" required>
+                <input type="password" id="signup-password" placeholder="6-Digit Password" required minlength="6" maxlength="6" pattern="\d{6}">
+                <button type="submit">Create Account</button>
+            </form>
+            <p class="switch-form">Already have an account? <span onclick="switchToLogin()">Log In</span></p>
+        </div>
+        <div id="login-popup" class="auth-popup hidden">
+            <div class="close-btn" onclick="enterGuestMode()">&times;</div>
+            <h2>Log In</h2>
+            <form id="login-form" class="auth-form">
+                <input type="text" id="login-identifier" placeholder="Username or Phone" required>
+                <input type="password" id="login-password" placeholder="Password" required>
+                <button type="submit">Log In</button>
+            </form>
+            <p class="switch-form">Don't have an account? <span onclick="switchToSignup()">Sign Up</span></p>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="app-container" class="app-container hidden">
+        <div id="main-content" class="main-content">
+            <!-- HOME PAGE -->
+            <div id="home-page" class="page active"></div>
+            <!-- SEARCH PAGE -->
+            <div id="search-page" class="page page-padding">
+                <input type="search" id="search-input" class="search-bar" placeholder="Search posts and profiles...">
+                <div id="search-results"></div>
+            </div>
+            <!-- CONNECTIONS PAGE -->
+            <div id="connections-page" class="page page-padding">
+                <h2 class="app-header">Connections</h2>
+                <div id="connections-list"></div>
+            </div>
+            <!-- PROFILE PAGE -->
+            <div id="profile-page" class="page"></div>
+        </div>
+    </div>
+
+    <!-- MODALS -->
+    <div id="new-post-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="close-btn" onclick="toggleNewPostModal()">&times;</div>
+            <h3>Create New Post</h3>
+            <form id="new-post-form">
+                <textarea id="new-post-text" placeholder="What's on your mind?"></textarea>
+                <div class="modal-actions">
+                    <div>
+                        <label for="new-post-image-input" class="file-label"><i class="fas fa-image"></i></label>
+                        <input type="file" id="new-post-image-input" accept="image/*">
+                        <img id="image-preview" class="image-preview hidden"/>
+                    </div>
+                    <button type="submit">Post</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="edit-profile-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="close-btn" onclick="toggleEditProfileModal()">&times;</div>
+            <h3>Edit Profile</h3>
+            <form id="edit-profile-form">
+                <div class="profile-pic-edit">
+                    <img id="edit-profile-pic-preview" class="image-preview" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover;">
+                    <label for="edit-profile-pic-input" class="clickable" style="color: var(--primary-color); font-weight: 600;">Change Photo</label>
+                    <input type="file" id="edit-profile-pic-input" accept="image/*">
+                </div>
+                <input type="text" id="edit-name" placeholder="Your Name" required>
+                <textarea id="edit-bio" placeholder="Your Bio" rows="3" maxlength="100"></textarea>
+                <div class="modal-actions" style="justify-content: flex-end;">
+                    <button type="submit">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- BOTTOM NAVIGATION -->
+    <nav id="bottom-nav" class="bottom-nav">
+        <div class="nav-icon active" onclick="showPage('home')"><i class="fas fa-home"></i></div>
+        <div class="nav-icon" onclick="showPage('search')"><i class="fas fa-search"></i></div>
+        <div class="nav-icon" onclick="toggleNewPostModal()"><i class="fas fa-plus-square"></i></div>
+        <div class="nav-icon" onclick="showPage('connections')"><i class="fas fa-user-friends"></i></div>
+        <div class="nav-icon" onclick="showPage('profile')"><i class="fas fa-user-circle"></i></div>
+    </nav>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    // --- DUMMY DATA --- (Data resets on page reload)
+    let users = [
+        { id: 1, name: "Alice Johnson", username: "alice_j", phone: "1112223333", password: "123456", bio: "Photographer & coffee enthusiast.", profilePic: "https://i.pravatar.cc/150?u=alice" },
+        { id: 2, name: "Bob Smith", username: "bob_s", phone: "4445556666", password: "123456", bio: "Exploring the world, one city at a time.", profilePic: "https://i.pravatar.cc/150?u=bob" },
+        { id: 3, name: "Charlie Brown", username: "charlie_b", phone: "7778889999", password: "123456", bio: "Just a simple guy.", profilePic: "https://i.pravatar.cc/150?u=charlie" },
+    ];
+
+    let posts = [
+        { id: 101, userId: 1, text: "Beautiful sunset today! #nature #photography", imageUrl: "https://picsum.photos/seed/sunset/600/400", timestamp: Date.now() - 3600000, likes: 25, comments: [{userId: 2, text: "Stunning shot!"}] },
+        { id: 102, userId: 2, text: "My new setup is finally complete. #tech #wfh", imageUrl: "https://picsum.photos/seed/tech/600/500", timestamp: Date.now() - 86400000, likes: 42, comments: [] },
+        { id: 103, userId: 3, text: "Sometimes, all you need is a good book and a quiet corner. #reading", imageUrl: null, timestamp: Date.now() - 172800000, likes: 15, comments: [] },
+        { id: 104, userId: 1, text: "Morning coffee vibes ☕️ #coffee", imageUrl: "https://picsum.photos/seed/coffee/600/600", timestamp: Date.now() - 259200000, likes: 33, comments: [{userId: 3, text: "Looks delicious."}] },
+    ];
+
+    let connections = [ { userId1: 1, userId2: 2 }, { userId1: 1, userId2: 3 } ];
+
+    // --- STATE MANAGEMENT ---
+    let currentUser = null; 
+
+    // --- UI ELEMENT REFS ---
+    const authOverlay = document.getElementById('auth-overlay');
+    const signupPopup = document.getElementById('signup-popup');
+    const loginPopup = document.getElementById('login-popup');
+    const appContainer = document.getElementById('app-container');
+    const mainContent = document.getElementById('main-content');
+    const navIcons = document.querySelectorAll('.nav-icon');
+    
+    // --- AUTHENTICATION & GUEST MODE ---
+    window.switchToLogin = () => { signupPopup.classList.add('hidden'); loginPopup.classList.remove('hidden'); };
+    window.switchToSignup = () => { loginPopup.classList.add('hidden'); signupPopup.classList.remove('hidden'); };
+    window.enterGuestMode = () => {
+        authOverlay.style.opacity = '0';
+        setTimeout(() => authOverlay.classList.add('hidden'), 300);
+        appContainer.classList.remove('hidden');
+        document.body.style.overflow = 'auto';
+        initApp();
+    };
+    
+    document.getElementById('signup-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('signup-name').value;
+        const username = document.getElementById('signup-username').value;
+        const phone = document.getElementById('signup-phone').value;
+        const password = document.getElementById('signup-password').value;
+        
+        if (users.find(u => u.username === username || u.phone === phone)) {
+            alert("Username or Phone number already exists.");
+            return;
+        }
+        const newUser = {
+            id: users.length + 1, name, username, phone, password,
+            bio: "New to RisaWa!", profilePic: `https://i.pravatar.cc/150?u=${username}`
+        };
+        users.push(newUser);
+        loginUser(username, password);
+    });
+
+    document.getElementById('login-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const identifier = document.getElementById('login-identifier').value;
+        const password = document.getElementById('login-password').value;
+        loginUser(identifier, password);
+    });
+    
+    function loginUser(identifier, password) {
+        const user = users.find(u => (u.username === identifier || u.phone === identifier) && u.password === password);
+        if (user) {
+            currentUser = user;
+            enterGuestMode();
+        } else {
+            alert("Invalid credentials. Please try again.");
+        }
+    }
+
+    function checkAuth(isProtected = false) {
+        if (!currentUser && isProtected) {
+            authOverlay.classList.remove('hidden');
+            authOverlay.style.opacity = '1';
+            document.body.style.overflow = 'hidden';
+            return false;
+        }
+        return true;
+    }
+
+    // --- PAGE NAVIGATION ---
+    window.showPage = (pageId) => {
+        const protectedPages = ['search', 'connections', 'profile'];
+        if (pageId === 'profile' && !currentUser) { // Special case for profile page to show own profile
+            if (!checkAuth(true)) return;
+        } else if (!checkAuth(protectedPages.includes(pageId))) {
+            return;
+        }
+
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(`${pageId}-page`).classList.add('active');
+        
+        navIcons.forEach(icon => icon.classList.remove('active'));
+        const activeIcon = Array.from(navIcons).find(icon => icon.getAttribute('onclick').includes(pageId));
+        if (activeIcon) activeIcon.classList.add('active');
+
+        if (pageId === 'home') renderHomePage();
+        else if (pageId === 'profile') renderProfilePage();
+        else if (pageId === 'connections') renderConnectionsPage();
+        else if (pageId === 'search') document.getElementById('search-input').focus();
+        
+        mainContent.scrollTop = 0;
+    };
+    
+    // --- RENDERING FUNCTIONS ---
+    function formatTime(timestamp) {
+        const diff = Date.now() - timestamp;
+        if (diff < 60000) return `${Math.floor(diff/1000)}s`;
+        if (diff < 3600000) return `${Math.floor(diff/60000)}m`;
+        if (diff < 86400000) return `${Math.floor(diff/3600000)}h`;
+        return `${Math.floor(diff/86400000)}d`;
+    }
+
+    function renderHomePage() {
+        const container = document.getElementById('home-page');
+        container.innerHTML = ''; // Clear previous content
+        // Show random public posts
+        const shuffledPosts = [...posts].sort(() => 0.5 - Math.random());
+        renderPosts(shuffledPosts, container);
+    }
+    
+    function renderPosts(postList, container, isAppending = false) {
+        if (!isAppending) container.innerHTML = '';
+        if (postList.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color: var(--secondary-text-color); padding: 20px;">No posts to show.</p>';
+            return;
+        }
+        
+        const postsHtml = postList.map(post => {
+            const author = users.find(u => u.id === post.userId);
+            if (!author) return '';
+            
+            const postTextHtml = post.text.replace(/#(\w+)/g, (match, tag) => `<span class="hashtag" onclick="searchByHashtag('${match}')">${match}</span>`);
+
+            const commentsHtml = post.comments.map(comment => {
+                const commenter = users.find(u => u.id === comment.userId);
+                return `<div class="comment"><span class="name">${commenter?.name || 'User'}</span> ${comment.text}</div>`;
+            }).join('');
+            
+            let connectButton = '';
+            if (currentUser && currentUser.id !== author.id) {
+                const connected = isConnected(currentUser.id, author.id);
+                connectButton = `<button class="connect-btn ${connected ? 'connected' : ''}" onclick="handleConnect(event, ${author.id})">${connected ? 'Connected' : 'Connect'}</button>`;
+            }
+
+            return `
+                <div class="post" id="post-${post.id}">
+                    <div class="post-header">
+                        <div class="post-header-left">
+                            <img src="${author.profilePic}" alt="${author.name}" onclick="viewUserProfile(${author.id})">
+                            <div class="post-header-info">
+                                <span class="name" onclick="viewUserProfile(${author.id})">${author.name}</span>
+                                <span class="time">${formatTime(post.timestamp)}</span>
+                            </div>
+                        </div>
+                        ${connectButton}
+                    </div>
+                    <div class="post-content">
+                        <p class="post-text">${postTextHtml}</p>
+                        ${post.imageUrl ? `<img class="post-image" src="${post.imageUrl}" alt="Post image">` : ''}
+                    </div>
+                    <div class="post-actions">
+                        <div class="action-group">
+                             <div class="action-item"><i class="far fa-heart" onclick="handleLike(event, ${post.id})"></i> <span id="like-count-${post.id}">${post.likes}</span></div>
+                             <div class="action-item"><i class="far fa-comment" onclick="focusCommentInput(${post.id})"></i> <span>${post.comments.length}</span></div>
+                        </div>
+                        <i class="far fa-share-square" onclick="handleShare(${post.id})"></i>
+                    </div>
+                    <div class="post-comments">${commentsHtml}</div>
+                    <div class="comment-input-container">
+                        <input type="text" id="comment-input-${post.id}" placeholder="Add a comment..." maxlength="50" onkeydown="if(event.key==='Enter') handleComment(${post.id})">
+                        <button onclick="handleComment(${post.id})">Post</button>
+                    </div>
+                </div>`;
+        }).join('');
+        container.innerHTML += postsHtml;
+    }
+
+    window.renderProfilePage = (userId = null) => {
+        const profileUser = userId ? users.find(u => u.id === userId) : currentUser;
+        if (!profileUser) {
+            showPage('home');
+            return;
+        }
+
+        const container = document.getElementById('profile-page');
+        const isOwnProfile = currentUser && profileUser.id === currentUser.id;
+        
+        container.innerHTML = `
+            <div class="profile-header">
+                <img src="${profileUser.profilePic}" alt="${profileUser.name}">
+                <div class="name">${profileUser.name}</div>
+                <p class="bio">${profileUser.bio || ''}</p>
+                ${isOwnProfile ? '<button class="edit-profile-btn" onclick="toggleEditProfileModal()">Edit Profile</button>' : ''}
+            </div>
+            <div id="user-posts-container"></div>
+        `;
+        const userPosts = posts.filter(p => p.userId === profileUser.id).sort((a, b) => b.timestamp - a.timestamp);
+        renderPosts(userPosts, document.getElementById('user-posts-container'));
+    };
+    
+    function renderConnectionsPage() {
+        if (!checkAuth(true)) return;
+        const list = document.getElementById('connections-list');
+        list.innerHTML = '';
+        const myConnectionIds = connections
+            .filter(c => c.userId1 === currentUser.id || c.userId2 === currentUser.id)
+            .map(c => c.userId1 === currentUser.id ? c.userId2 : c.userId1);
+        
+        if (myConnectionIds.length === 0) {
+            list.innerHTML = '<p style="text-align:center; color: var(--secondary-text-color); padding: 20px;">You have no connections yet.</p>';
+            return;
+        }
+        
+        myConnectionIds.forEach(friendId => {
+            const friend = users.find(u => u.id === friendId);
+            if(friend) {
+                list.innerHTML += `
+                    <div class="list-item clickable" onclick="viewUserProfile(${friend.id})">
+                        <img src="${friend.profilePic}" alt="${friend.name}">
+                        <div class="name">${friend.name}</div>
+                    </div>
+                `;
+            }
+        });
+    }
+
+    // --- INTERACTION HANDLERS ---
+    window.handleLike = (event, postId) => {
+        if (!checkAuth(true)) return;
+        const post = posts.find(p => p.id === postId);
+        const likeIcon = event.target;
+        
+        if (likeIcon.classList.contains('far')) {
+            post.likes++;
+            likeIcon.classList.replace('far', 'fas');
+            likeIcon.classList.add('liked');
+        } else {
+            post.likes--;
+            likeIcon.classList.replace('fas', 'far');
+            likeIcon.classList.remove('liked');
+        }
+        document.getElementById(`like-count-${postId}`).textContent = post.likes;
+    };
+    
+    window.focusCommentInput = (postId) => { if (checkAuth(true)) document.getElementById(`comment-input-${postId}`).focus(); };
+    
+    window.handleComment = (postId) => {
+        if (!checkAuth(true)) return;
+        const input = document.getElementById(`comment-input-${postId}`);
+        if (input.value.trim()) {
+            posts.find(p => p.id === postId).comments.push({ userId: currentUser.id, text: input.value.trim() });
+            input.value = '';
+            // Partial re-render (could be more efficient)
+            const currentPageId = document.querySelector('.page.active').id.replace('-page', '');
+            if(currentPageId === 'home') renderHomePage();
+            if(currentPageId === 'profile') renderProfilePage(posts.find(p=>p.id===postId).userId);
+        }
+    };
+
+    window.handleShare = async (postId) => {
+        const post = posts.find(p => p.id === postId);
+        const author = users.find(u => u.id === post.userId);
+        const shareData = {
+            title: `Post by ${author.name} on RisaWa`,
+            text: post.text.substring(0, 100) + (post.text.length > 100 ? '...' : ''),
+            url: window.location.href // Simplified URL for this single-file app
+        };
+
+        try {
+            if (navigator.share) {
+                await navigator.share(shareData);
+            } else {
+                throw new Error("Web Share API not supported");
+            }
+        } catch (err) {
+            navigator.clipboard.writeText(shareData.url)
+                .then(() => alert("Post link copied to clipboard!"))
+                .catch(() => alert("Could not copy link."));
+        }
+    };
+
+    window.viewUserProfile = (userId) => {
+        renderProfilePage(userId);
+        showPage('profile');
+    };
+
+    window.isConnected = (userId1, userId2) => {
+        return connections.some(c => (c.userId1 === userId1 && c.userId2 === userId2) || (c.userId1 === userId2 && c.userId2 === userId1));
+    };
+
+    window.handleConnect = (event, targetUserId) => {
+        event.stopPropagation(); // Prevent triggering other clicks
+        if (!checkAuth(true)) return;
+        if (isConnected(currentUser.id, targetUserId)) return;
+        
+        connections.push({ userId1: currentUser.id, userId2: targetUserId });
+        const targetUser = users.find(u => u.id === targetUserId);
+        alert(`You are now connected with ${targetUser.name}!`);
+        event.target.textContent = 'Connected';
+        event.target.classList.add('connected');
+    };
+
+    // --- MODALS (NEW POST & EDIT PROFILE) ---
+    const newPostModal = document.getElementById('new-post-modal');
+    window.toggleNewPostModal = () => {
+        if (!checkAuth(true)) return;
+        newPostModal.classList.toggle('hidden');
+        if (!newPostModal.classList.contains('hidden')) {
+            document.getElementById('new-post-form').reset();
+            document.getElementById('image-preview').classList.add('hidden');
+        }
+    };
+    document.getElementById('new-post-image-input').addEventListener('change', (e) => {
+        if (e.target.files[0]) {
+            const preview = document.getElementById('image-preview');
+            preview.src = URL.createObjectURL(e.target.files[0]);
+            preview.classList.remove('hidden');
+        }
+    });
+    document.getElementById('new-post-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const text = document.getElementById('new-post-text').value.trim();
+        const imageFile = document.getElementById('new-post-image-input').files[0];
+        if (!text && !imageFile) return alert("A post must have text or an image.");
+
+        posts.unshift({
+            id: Date.now(), userId: currentUser.id, text,
+            imageUrl: imageFile ? URL.createObjectURL(imageFile) : null,
+            timestamp: Date.now(), likes: 0, comments: []
+        });
+        toggleNewPostModal();
+        showPage('home');
+    });
+    
+    const editProfileModal = document.getElementById('edit-profile-modal');
+    window.toggleEditProfileModal = () => {
+        if (!checkAuth(true)) return;
+        editProfileModal.classList.toggle('hidden');
+        if (!editProfileModal.classList.contains('hidden')) {
+            document.getElementById('edit-name').value = currentUser.name;
+            document.getElementById('edit-bio').value = currentUser.bio || '';
+            document.getElementById('edit-profile-pic-preview').src = currentUser.profilePic;
+            document.getElementById('edit-profile-form').reset(); // Resets file input
+        }
+    };
+    document.getElementById('edit-profile-pic-input').addEventListener('change', (e) => {
+        if (e.target.files[0]) {
+            document.getElementById('edit-profile-pic-preview').src = URL.createObjectURL(e.target.files[0]);
+        }
+    });
+    document.getElementById('edit-profile-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        currentUser.name = document.getElementById('edit-name').value;
+        currentUser.bio = document.getElementById('edit-bio').value;
+        const newPicFile = document.getElementById('edit-profile-pic-input').files[0];
+        if (newPicFile) {
+            currentUser.profilePic = URL.createObjectURL(newPicFile);
+        }
+        
+        // Also update the user in the main 'users' array
+        const userIndex = users.findIndex(u => u.id === currentUser.id);
+        if (userIndex > -1) users[userIndex] = currentUser;
+
+        toggleEditProfileModal();
+        renderProfilePage(); // Re-render the profile page to show changes
+    });
+
+    // --- SEARCH ---
+    window.searchByHashtag = (tag) => {
+        showPage('search');
+        const searchInput = document.getElementById('search-input');
+        searchInput.value = tag;
+        performSearch(tag);
+    };
+
+    function performSearch(query) {
+        const resultsContainer = document.getElementById('search-results');
+        query = query.toLowerCase();
+        
+        if (query.length < 1) {
+            resultsContainer.innerHTML = '';
+            return;
+        }
+        
+        const matchingProfiles = users.filter(u => u.name.toLowerCase().includes(query) || u.username.toLowerCase().includes(query));
+        const matchingPosts = posts.filter(p => p.text.toLowerCase().includes(query));
+        
+        let html = '';
+        if (matchingProfiles.length > 0) {
+            html += '<h3>Profiles</h3>';
+            matchingProfiles.forEach(u => {
+                html += `<div class="list-item clickable" onclick="viewUserProfile(${u.id})">
+                            <img src="${u.profilePic}" alt="${u.name}">
+                            <div class="name">${u.name}</div>
+                         </div>`;
+            });
+        }
+        
+        if (matchingPosts.length > 0) {
+            html += '<h3>Posts</h3>';
+        }
+        resultsContainer.innerHTML = html; // Render profiles first
+
+        if (matchingPosts.length > 0) {
+            const postContainer = document.createElement('div');
+            resultsContainer.appendChild(postContainer);
+            renderPosts(matchingPosts, postContainer, true); // Then append posts
+        }
+
+        if (matchingProfiles.length === 0 && matchingPosts.length === 0) {
+            resultsContainer.innerHTML = '<p style="text-align:center; color: var(--secondary-text-color); padding: 20px;">No results found.</p>';
+        }
+    }
+    
+    document.getElementById('search-input').addEventListener('input', (e) => performSearch(e.target.value));
+
+    // --- APP INITIALIZATION ---
+    function initApp() { showPage('home'); }
+    // Start the app logic.
+});
+</script>
+
+</body>
+</html>
